@@ -85,7 +85,6 @@ def generate_html(quotes, poem, apod=None):
                 <div class="apod-media">
                     <iframe src="{apod["url"]}" frameborder="0" allowfullscreen></iframe>
                 </div>
-                <p class="apod-title">{apod.get("title", "")}</p>
             </section>
             '''
         else:
@@ -99,7 +98,6 @@ def generate_html(quotes, poem, apod=None):
                         <img src="{apod["url"]}" alt="{apod.get("title", "NASA APOD")}">
                     </a>
                 </div>
-                <p class="apod-title">{apod.get("title", "")}</p>
             </section>
             '''
         
@@ -107,7 +105,7 @@ def generate_html(quotes, poem, apod=None):
         copyright_text = f'<p class="apod-copyright">Image Credit: {apod["copyright"]}</p>' if apod.get("copyright") else ""
         apod_description_html = f'''
         <section class="apod-description">
-            <h2>About Today's Astronomy Picture</h2>
+            <b><p class="apod-title">{apod.get("title", "")}</p></b>
             <p class="apod-explanation">{apod.get("explanation", "")}</p>
             {copyright_text}
             <p class="apod-credit">Image courtesy of <a href="https://apod.nasa.gov/apod/astropix.html" target="_blank">NASA APOD</a></p>
@@ -589,7 +587,6 @@ def generate_html(quotes, poem, apod=None):
 <body>
     <div class="container">
         <header>
-            <h1>Daily Inspiration</h1>
             <p class="date">{today}</p>
         </header>
         
