@@ -50,7 +50,7 @@ def fetch_apod():
 
 def select_daily_content(data):
     """
-    Select 3 quotes and 1 poem based on the current date.
+    Select 1 quote and 1 poem based on the current date.
     Uses the date as a seed for reproducible daily selection.
     """
     today = date.today()
@@ -61,8 +61,8 @@ def select_daily_content(data):
     quotes = data.get("quotes", [])
     poems = data.get("poems", [])
     
-    # Select 3 random quotes (or fewer if not enough)
-    selected_quotes = rng.sample(quotes, min(3, len(quotes)))
+    # Select 1 random quote
+    selected_quotes = [rng.choice(quotes)] if quotes else []
     
     # Select 1 random poem
     selected_poem = rng.choice(poems) if poems else None
