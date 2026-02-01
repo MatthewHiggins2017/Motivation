@@ -5,7 +5,9 @@ Run locally to add new quotes and poems via a web form.
 """
 
 import json
+import os
 import uuid
+import requests
 from pathlib import Path
 from flask import Flask, render_template_string, request, redirect, url_for, flash
 
@@ -29,6 +31,31 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
+def fetch_apod():
+    """
+    Fetch NASA Astronomy Picture of the Day.
+    Returns dict with 'url', 'title', 'explanation', and 'media_type' or None if unavailable.
+    """
+    api_key = os.environ.get("NASA_API_KEY", "DEMO_KEY")
+    url = f"https://api.nasa.gov/planetary/apod?api_key={api_key}"
+    
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        return {
+            "url": data.get("url"),
+            "hdurl": data.get("hdurl"),
+            "title": data.get("title"),
+            "explanation": data.get("explanation"),
+            "media_type": data.get("media_type"),
+            "copyright": data.get("copyright"),
+        }
+    except Exception as e:
+        print(f"Warning: Could not fetch APOD: {e}")
+        return None
+
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html lang="en">
@@ -36,26 +63,36 @@ HTML_TEMPLATE = '''
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Inspiration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #ffffff;
-            --text-color: #2d3436;
-            --secondary-color: #636e72;
-            --border-color: #dfe6e9;
-            --accent-color: #6c5ce7;
-            --success-color: #00b894;
+            /* Calm & Focus Design System - Biophilic & Low Arousal */
+            --bg-color: #FDFBF7;           /* Off-White/Cream - reduces eye strain */
+            --text-color: #333333;          /* Dark Charcoal - softer than pure black */
+            --secondary-color: #5a6a5e;     /* Muted sage for secondary text */
+            --border-color: #e8e4dc;        /* Warm light border */
+            --accent-color: #8FBC8F;        /* Sage Green - restorative effect */
+            --info-color: #AEC6CF;          /* Serene Blue - lowers anxiety */
+            --warm-accent: #F88379;         /* Soft Coral - warmth without alertness */
+            --card-bg: #F7F5F0;             /* Slightly darker cream for cards */
+            --success-color: #8FBC8F;
             --error-color: #d63031;
-            --card-bg: #f8f9fa;
         }
         
         @media (prefers-color-scheme: dark) {
             :root {
-                --bg-color: #0d1117;
-                --text-color: #e6edf3;
-                --secondary-color: #8b949e;
-                --border-color: #21262d;
-                --accent-color: #a29bfe;
-                --card-bg: #161b22;
+                --bg-color: #1a1d1a;            /* Dark with slight green undertone */
+                --text-color: #e8e4dc;          /* Warm off-white text */
+                --secondary-color: #9aab9e;     /* Muted sage for dark mode */
+                --border-color: #2d332d;        /* Subtle green-tinted border */
+                --accent-color: #8FBC8F;        /* Sage Green stays consistent */
+                --info-color: #AEC6CF;          /* Serene Blue */
+                --warm-accent: #F88379;         /* Soft Coral */
+                --card-bg: #232823;             /* Dark card background */
+                --success-color: #8FBC8F;
+                --error-color: #d63031;
             }
         }
         
@@ -66,17 +103,17 @@ HTML_TEMPLATE = '''
         }
         
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
-            line-height: 1.8;
+            line-height: 1.6;
             min-height: 100vh;
         }
         
         .container {
             max-width: 680px;
             margin: 0 auto;
-            padding: 3rem 2rem;
+            padding: 3.6rem 2.4rem;
         }
         
         .admin-icon {
@@ -128,7 +165,7 @@ HTML_TEMPLATE = '''
         
         header {
             text-align: center;
-            margin-bottom: 4rem;
+            margin-bottom: 4.8rem;
         }
         
         h1 {
@@ -136,7 +173,7 @@ HTML_TEMPLATE = '''
             font-weight: 300;
             letter-spacing: 0.1em;
             text-transform: uppercase;
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.9rem;
             color: var(--secondary-color);
         }
         
@@ -149,7 +186,7 @@ HTML_TEMPLATE = '''
         h2 {
             font-size: 0.75rem;
             font-weight: 500;
-            margin: 3rem 0 1.5rem 0;
+            margin: 3.6rem 0 1.8rem 0;
             color: var(--secondary-color);
             text-transform: uppercase;
             letter-spacing: 0.15em;
@@ -163,7 +200,7 @@ HTML_TEMPLATE = '''
         }
         
         .flash.success {
-            background: rgba(0, 184, 148, 0.1);
+            background: rgba(143, 188, 143, 0.1);
             border: 1px solid var(--success-color);
             color: var(--success-color);
         }
@@ -177,7 +214,7 @@ HTML_TEMPLATE = '''
         form {
             background: var(--card-bg);
             padding: 2rem;
-            border-radius: 16px;
+            border-radius: 12px;
             border: 1px solid var(--border-color);
         }
         
@@ -212,7 +249,7 @@ HTML_TEMPLATE = '''
         select:focus {
             outline: none;
             border-color: var(--accent-color);
-            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+            box-shadow: 0 0 0 3px rgba(143, 188, 143, 0.1);
         }
         
         textarea {
@@ -234,24 +271,151 @@ HTML_TEMPLATE = '''
         
         button:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
+            box-shadow: 0 4px 12px rgba(143, 188, 143, 0.3);
         }
         
         .entry {
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
+            padding: 1.8rem;
+            margin-bottom: 1.8rem;
+            background: var(--card-bg);
+            border-radius: 12px;
         }
         
         .entry-text {
             font-size: 1.25rem;
             font-style: italic;
-            margin-bottom: 1rem;
-            line-height: 1.7;
+            margin-bottom: 1.2rem;
+            line-height: 1.6;
+            max-width: 65ch;
         }
         
         .entry-author {
             color: var(--secondary-color);
             font-size: 0.9rem;
+        }
+        
+        .images {
+            margin-top: 1.8rem;
+            display: flex;
+            gap: 0.9rem;
+            flex-wrap: wrap;
+        }
+        
+        .images img {
+            max-width: 200px;
+            border-radius: 12px;
+        }
+        
+        .history-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            background: none;
+            border: 1px solid var(--border-color);
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            color: var(--secondary-color);
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 1.2rem;
+            transition: all 0.2s ease;
+        }
+        
+        .history-toggle:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+        
+        .history-toggle svg {
+            width: 14px;
+            height: 14px;
+            transition: transform 0.2s ease;
+        }
+        
+        .history-toggle.open svg {
+            transform: rotate(180deg);
+        }
+        
+        .history-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            background: var(--border-color);
+            border-radius: 12px;
+            margin-top: 0.9rem;
+            font-size: 0.9rem;
+            color: var(--secondary-color);
+            line-height: 1.6;
+            max-width: 65ch;
+        }
+        
+        .history-content.open {
+            max-height: 500px;
+            padding: 1.2rem;
+        }
+        
+        .apod-section {
+            margin-bottom: 3.6rem;
+            text-align: center;
+        }
+        
+        .apod-media {
+            margin: 1.8rem 0;
+        }
+        
+        .apod-media img {
+            max-width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .apod-media iframe {
+            width: 100%;
+            aspect-ratio: 16/9;
+            border-radius: 12px;
+        }
+        
+        .apod-title {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text-color);
+            margin-top: 1.2rem;
+        }
+        
+        .apod-description {
+            margin-top: 3.6rem;
+            padding: 2.4rem;
+            background: var(--card-bg);
+            border-radius: 12px;
+        }
+        
+        .apod-explanation {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--text-color);
+            margin-bottom: 1.2rem;
+            max-width: 65ch;
+        }
+        
+        .apod-copyright {
+            font-size: 0.8rem;
+            color: var(--secondary-color);
+            font-style: italic;
+            margin-bottom: 0.6rem;
+        }
+        
+        .apod-credit {
+            font-size: 0.8rem;
+            color: var(--secondary-color);
+        }
+        
+        .apod-credit a {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+        
+        .apod-credit a:hover {
+            text-decoration: underline;
         }
         
         .stats {
@@ -281,6 +445,167 @@ HTML_TEMPLATE = '''
             text-transform: uppercase;
             letter-spacing: 0.1em;
         }
+        
+        footer {
+            margin-top: 4.8rem;
+            text-align: center;
+            color: var(--secondary-color);
+            font-size: 0.8rem;
+        }
+        
+        /* Mobile-First Responsive Styles */
+        @media (max-width: 768px) {
+            .container {
+                padding: 2rem 1.25rem;
+            }
+            
+            header {
+                margin-bottom: 2.5rem;
+            }
+            
+            h1 {
+                font-size: 1.2rem;
+                letter-spacing: 0.08em;
+            }
+            
+            .date {
+                font-size: 1.75rem;
+            }
+            
+            h2 {
+                font-size: 0.7rem;
+                margin: 2rem 0 1.2rem 0;
+            }
+            
+            .entry {
+                padding: 1.25rem;
+                margin-bottom: 1.25rem;
+                border-radius: 10px;
+            }
+            
+            .entry-text {
+                font-size: 1.1rem;
+                line-height: 1.7;
+            }
+            
+            .entry-author {
+                font-size: 0.85rem;
+            }
+            
+            .images {
+                margin-top: 1.25rem;
+                gap: 0.6rem;
+            }
+            
+            .images img {
+                max-width: 150px;
+                border-radius: 10px;
+            }
+            
+            .history-toggle {
+                padding: 0.75rem 1rem;
+                font-size: 0.85rem;
+                border-radius: 10px;
+                min-height: 44px;
+            }
+            
+            .history-content {
+                border-radius: 10px;
+                font-size: 0.85rem;
+            }
+            
+            .history-content.open {
+                padding: 1rem;
+            }
+            
+            .apod-section {
+                margin-bottom: 2.5rem;
+            }
+            
+            .apod-media {
+                margin: 1.25rem 0;
+            }
+            
+            .apod-media img {
+                border-radius: 10px;
+            }
+            
+            .apod-media iframe {
+                border-radius: 10px;
+            }
+            
+            .apod-title {
+                font-size: 1rem;
+                margin-top: 1rem;
+            }
+            
+            .apod-description {
+                margin-top: 2.5rem;
+                padding: 1.5rem;
+                border-radius: 10px;
+            }
+            
+            .apod-explanation {
+                font-size: 0.9rem;
+                line-height: 1.7;
+            }
+            
+            footer {
+                margin-top: 3rem;
+                font-size: 0.75rem;
+            }
+        }
+        
+        /* Small phones */
+        @media (max-width: 375px) {
+            .container {
+                padding: 1.5rem 1rem;
+            }
+            
+            .date {
+                font-size: 1.5rem;
+            }
+            
+            .entry {
+                padding: 1rem;
+            }
+            
+            .entry-text {
+                font-size: 1rem;
+            }
+            
+            .apod-description {
+                padding: 1.25rem;
+            }
+        }
+        
+        /* Touch device optimizations */
+        @media (hover: none) and (pointer: coarse) {
+            .history-toggle {
+                padding: 0.875rem 1.25rem;
+                min-height: 48px;
+            }
+            
+            .history-toggle:hover {
+                border-color: var(--border-color);
+                color: var(--secondary-color);
+            }
+            
+            .history-toggle:active {
+                border-color: var(--accent-color);
+                color: var(--accent-color);
+                background: var(--card-bg);
+            }
+        }
+        
+        /* Reduce motion for accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            .history-toggle svg,
+            .history-content,
+            .history-toggle {
+                transition: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -293,6 +618,13 @@ HTML_TEMPLATE = '''
     
     {% block content %}{% endblock %}
     </div>
+    <script>
+        function toggleHistory(button) {
+            button.classList.toggle('open');
+            const content = button.nextElementSibling;
+            content.classList.toggle('open');
+        }
+    </script>
 </body>
 </html>
 '''
@@ -307,15 +639,45 @@ INDEX_TEMPLATE = '''
     </a>
     
     <header>
-        <h1>Daily Inspiration</h1>
         <p class="date">{{ today }}</p>
     </header>
     
-    <h2>Today's Quotes</h2>
+    {% if apod and apod.url %}
+    <section class="apod-section">
+        <h2>Astronomy Picture of the Day</h2>
+        <div class="apod-media">
+            {% if apod.media_type == 'video' %}
+            <iframe src="{{ apod.url }}" frameborder="0" allowfullscreen></iframe>
+            {% else %}
+            <a href="{{ apod.hdurl or apod.url }}" target="_blank">
+                <img src="{{ apod.url }}" alt="{{ apod.title or 'NASA APOD' }}">
+            </a>
+            {% endif %}
+        </div>
+    </section>
+    {% endif %}
+    
+    <h2>Today's Quote</h2>
     {% for quote in quotes %}
     <div class="entry">
         <p class="entry-text">"{{ quote.text }}"</p>
         <p class="entry-author">— {{ quote.author }}</p>
+        {% if quote.images %}
+        <div class="images">
+            {% for img in quote.images %}
+            <img src="{{ img }}" alt="Quote image">
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if quote.history %}
+        <button class="history-toggle" onclick="toggleHistory(this)">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+            History
+        </button>
+        <div class="history-content">{{ quote.history }}</div>
+        {% endif %}
     </div>
     {% endfor %}
     
@@ -324,10 +686,41 @@ INDEX_TEMPLATE = '''
     <div class="entry">
         <p class="entry-text">{{ poem.text|replace('\n', '<br>')|safe }}</p>
         <p class="entry-author">— {{ poem.author }}</p>
+        {% if poem.images %}
+        <div class="images">
+            {% for img in poem.images %}
+            <img src="{{ img }}" alt="Poem image">
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if poem.history %}
+        <button class="history-toggle" onclick="toggleHistory(this)">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+            History
+        </button>
+        <div class="history-content">{{ poem.history }}</div>
+        {% endif %}
     </div>
     {% else %}
     <p style="color: var(--secondary-color); text-align: center;">No poem available</p>
     {% endif %}
+    
+    {% if apod and apod.url %}
+    <section class="apod-description">
+        <b><p class="apod-title">{{ apod.title or '' }}</p></b>
+        <p class="apod-explanation">{{ apod.explanation or '' }}</p>
+        {% if apod.copyright %}
+        <p class="apod-copyright">Image Credit: {{ apod.copyright }}</p>
+        {% endif %}
+        <p class="apod-credit">Image courtesy of <a href="https://apod.nasa.gov/apod/astropix.html" target="_blank">NASA APOD</a></p>
+    </section>
+    {% endif %}
+    
+    <footer>
+        <p>New inspiration every day</p>
+    </footer>
 {% endblock %}
 '''
 
@@ -423,16 +816,21 @@ def index():
     quotes = data.get("quotes", [])
     poems = data.get("poems", [])
     
-    selected_quotes = rng.sample(quotes, min(3, len(quotes)))
+    # Select 1 random quote (matching generate_page.py)
+    selected_quotes = [rng.choice(quotes)] if quotes else []
     selected_poem = rng.choice(poems) if poems else None
     
     today = today_date.strftime("%B %d, %Y")
+    
+    # Fetch NASA APOD
+    apod = fetch_apod()
     
     return render_template_string(
         render_with_base(INDEX_TEMPLATE),
         quotes=selected_quotes,
         poem=selected_poem,
-        today=today
+        today=today,
+        apod=apod
     )
 
 @app.route("/add")
