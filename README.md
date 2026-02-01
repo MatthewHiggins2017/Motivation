@@ -1,6 +1,6 @@
 # Daily Inspiration
 
-A minimalist web app that displays daily inspirational quotes and poems. The content changes each day with a deterministic random selection, ensuring everyone sees the same inspiration on any given day.
+A simple web app made to replace social media scrolling in the morning.
 
 -----------
 
