@@ -81,6 +81,7 @@ def generate_html(quotes, poem, apod=None):
             # Handle video (usually YouTube embed)
             apod_image_html = f'''
             <section class="apod-section">
+                <h2>Astronomy Picture of the Day</h2>
                 <div class="apod-media">
                     <iframe src="{apod["url"]}" frameborder="0" allowfullscreen></iframe>
                 </div>
@@ -91,6 +92,7 @@ def generate_html(quotes, poem, apod=None):
             image_url = apod.get("hdurl") or apod.get("url")
             apod_image_html = f'''
             <section class="apod-section">
+                <h2>Astronomy Picture of the Day</h2>
                 <div class="apod-media">
                     <a href="{image_url}" target="_blank">
                         <img src="{apod["url"]}" alt="{apod.get("title", "NASA APOD")}">
@@ -597,7 +599,6 @@ def generate_html(quotes, poem, apod=None):
             <h2>Today's Poem</h2>
             {poem_html}
             
-            <h3>Astronomy Picture of the Day</h3>
             {apod_description_html}
         </main>
         
